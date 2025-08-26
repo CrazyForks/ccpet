@@ -88,19 +88,23 @@ export class CheckCommand {
       const display = statusLine.getStatusDisplay();
       const currentState = (statusLine as any).pet ? (statusLine as any).pet.getState() : null;
       
+      // Count actual lines in the display output
+      const displayLines = display.split('\n').filter(line => line.trim() !== '').length;
+      const totalLines = displayLines + 2; // + time info + countdown
+      
       // For subsequent updates, move cursor up and clear lines
       if (this.previousState) {
-        // Move cursor up 3 lines (pet + time + countdown) and clear from cursor down
-        process.stdout.write('\x1b[3A\x1b[0J');
+        // Move cursor up to the beginning of our previous output and clear from cursor down
+        process.stdout.write(`\x1b[${totalLines}A\x1b[0J`);
       }
       
-      // Build simplified output (3 lines)
+      // Build output
       let output = '';
       
-      // Line 1: Pet display
+      // Pet display (could be multiple lines)
       output += display + '\n';
       
-      // Line 2: Time info
+      // Time info
       if (currentState && currentState.lastFeedTime) {
         const timeSinceLastFeed = Date.now() - new Date(currentState.lastFeedTime).getTime();
         const minutes = Math.floor(timeSinceLastFeed / (1000 * 60));
@@ -115,8 +119,9 @@ export class CheckCommand {
         output += '⏰ 距离上次喂食: 未知\n';
       }
       
-      // Line 3: Countdown
+      // Countdown
       output += `⏳ 下次更新: ${this.countdownSeconds}秒\n`;
+      
       
       // Output everything at once
       process.stdout.write(output);
