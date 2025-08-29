@@ -192,3 +192,13 @@ export function validateLine1Items(items: string[]): Line1ItemType[] {
   );
 }
 
+// Supabase同步配置
+export const SUPABASE_CONFIG = {
+  DEFAULT_URL: process.env.SUPABASE_URL || '',
+  DEFAULT_API_KEY: process.env.SUPABASE_ANON_KEY || '',
+  BATCH_SIZE: 100,
+  DEFAULT_SYNC_INTERVAL: 24 * 60 * 60 * 1000, // 24小时
+  MAX_RETRY_ATTEMPTS: 3,
+  RETRY_DELAY_MS: 1000
+} as const;
+

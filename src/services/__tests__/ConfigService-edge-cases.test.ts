@@ -54,7 +54,8 @@ describe('ConfigService Edge Cases', () => {
       expect(config).toEqual({
         colors: expect.any(Object),
         pet: expect.any(Object),
-        display: expect.any(Object)
+        display: expect.any(Object),
+        supabase: expect.any(Object)
       });
     });
 
@@ -86,7 +87,8 @@ describe('ConfigService Edge Cases', () => {
       expect(config).toEqual({
         colors: expect.any(Object),
         pet: expect.any(Object),
-        display: expect.any(Object)
+        display: expect.any(Object),
+        supabase: expect.any(Object)
       });
       
       // Clean up
@@ -100,7 +102,8 @@ describe('ConfigService Edge Cases', () => {
       expect(config).toEqual({
         colors: expect.any(Object),
         pet: expect.any(Object),
-        display: expect.any(Object)
+        display: expect.any(Object),
+        supabase: expect.any(Object)
       });
       
       // Should have created the config file
@@ -338,6 +341,46 @@ describe('ConfigService Edge Cases', () => {
 
       expect(merged.colors.petExpression).toBe('#FF0000');
       expect(merged.colors.nested).toEqual({ deep: { value: 'should not break' } });
+    });
+  });
+
+  describe('Supabase configuration', () => {
+    it('should include default Supabase configuration', () => {
+      const config = configService.getConfig();
+      
+      expect(config.supabase).toBeDefined();
+      expect(config.supabase?.url).toBe('https://rzsupavqzxhyrgcexrpx.supabase.co');
+      expect(config.supabase?.apiKey).toBe('sbp_88f3151cc0a24a37dd71617c562e62a79727ef6f');
+      expect(config.supabase?.autoSync).toBe(false);
+      expect(config.supabase?.syncInterval).toBe(1440);
+    });
+
+    it('should allow setting Supabase configuration', () => {
+      configService.setSupabaseConfig('url', 'https://custom.supabase.co');
+      configService.setSupabaseConfig('apiKey', 'custom-key');
+      configService.setSupabaseConfig('autoSync', true);
+      configService.setSupabaseConfig('syncInterval', 720);
+      
+      const config = configService.getConfig();
+      
+      expect(config.supabase?.url).toBe('https://custom.supabase.co');
+      expect(config.supabase?.apiKey).toBe('custom-key');
+      expect(config.supabase?.autoSync).toBe(true);
+      expect(config.supabase?.syncInterval).toBe(720);
+    });
+
+    it('should handle invalid syncInterval values', () => {
+      // Create a fresh config service with a unique path to ensure clean state
+      const uniqueTestPath = path.join(os.tmpdir(), `ccpet-test-${Date.now()}`);
+      const freshConfigService = new ConfigService(uniqueTestPath);
+      
+      expect(() => {
+        freshConfigService.setSupabaseConfig('syncInterval', 'invalid' as any);
+      }).toThrow('Invalid syncInterval value');
+      
+      // The invalid value should not have been set, so config should still have default value
+      const config = freshConfigService.getConfig();
+      expect(config.supabase?.syncInterval).toBe(1440);
     });
   });
 });

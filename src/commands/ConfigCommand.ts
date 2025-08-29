@@ -65,6 +65,10 @@ export class ConfigCommand {
     console.log('  display.line2.items      Items to show on line 2 (comma-separated)');
     console.log('  display.line3.enabled    Enable/disable line 3 (true/false)');
     console.log('  display.line3.items      Items to show on line 3 (comma-separated)');
+    console.log('  supabase.url             Supabase project URL');
+    console.log('  supabase.apiKey          Supabase anonymous API key');
+    console.log('  supabase.autoSync        Enable/disable auto sync (true/false)');
+    console.log('  supabase.syncInterval    Auto sync interval in minutes (number)');
     console.log('');
     console.log('Available display items: input, output, cached, total, context-length, context-percentage, context-percentage-usable');
     console.log('');
@@ -123,6 +127,17 @@ export class ConfigCommand {
         else if (!isNaN(Number(value))) parsedValue = Number(value);
         
         this.configService.setDisplayConfig(displayKey, parsedValue);
+        console.log(`✅ Set ${key} = ${parsedValue}`);
+      } else if (key.startsWith('supabase.')) {
+        const supabaseKey = key.replace('supabase.', '');
+        let parsedValue: any = value;
+        
+        // Parse boolean and number values for Supabase config
+        if (value === 'true') parsedValue = true;
+        else if (value === 'false') parsedValue = false;
+        else if (!isNaN(Number(value))) parsedValue = Number(value);
+        
+        this.configService.setSupabaseConfig(supabaseKey, parsedValue);
         console.log(`✅ Set ${key} = ${parsedValue}`);
       } else {
         console.error(`Unknown configuration key: ${key}`);

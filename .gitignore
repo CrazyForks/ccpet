@@ -61,3 +61,4 @@ temp/
 .claude/
 .windsurf/
 docs/tmp
+.mcp.json

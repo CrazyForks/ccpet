@@ -40,6 +40,12 @@ export interface UserConfig {
       items?: string[]; // e.g., ['total'] or custom items
     };
   };
+  supabase?: {
+    url?: string;
+    apiKey?: string;
+    autoSync?: boolean;
+    syncInterval?: number; // minutes, default 1440 (24 hours)
+  };
 }
 
 const DEFAULT_CONFIG: UserConfig = {
@@ -78,6 +84,12 @@ const DEFAULT_CONFIG: UserConfig = {
       enabled: true,
       items: ['context-length', 'context-percentage', 'context-percentage-usable', 'cost']
     }
+  },
+  supabase: {
+    url: 'https://rzsupavqzxhyrgcexrpx.supabase.co',
+    apiKey: 'sbp_88f3151cc0a24a37dd71617c562e62a79727ef6f',
+    autoSync: false,
+    syncInterval: 1440 // 24 hours
   }
 };
 
@@ -114,9 +126,10 @@ export class ConfigService {
 
     if (!fs.existsSync(this.configFile)) {
       // Create default config if it doesn't exist
-      this.saveConfig(DEFAULT_CONFIG);
-      this.cachedConfig = DEFAULT_CONFIG;
-      return DEFAULT_CONFIG;
+      const defaultConfig = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+      this.saveConfig(defaultConfig);
+      this.cachedConfig = defaultConfig;
+      return defaultConfig;
     }
 
     try {
@@ -129,8 +142,9 @@ export class ConfigService {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.warn('Failed to load config, using defaults:', errorMessage);
-      this.cachedConfig = DEFAULT_CONFIG;
-      return DEFAULT_CONFIG;
+      const defaultConfig = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+      this.cachedConfig = defaultConfig;
+      return defaultConfig;
     }
   }
 
@@ -159,6 +173,10 @@ export class ConfigService {
           ...DEFAULT_CONFIG.display.line3,
           ...userConfig.display?.line3
         }
+      },
+      supabase: {
+        ...DEFAULT_CONFIG.supabase,
+        ...userConfig.supabase
       }
     };
   }
@@ -166,7 +184,8 @@ export class ConfigService {
   private saveConfig(config: UserConfig): void {
     this.ensureConfigDir();
     fs.writeFileSync(this.configFile, JSON.stringify(config, null, 2), 'utf8');
-    this.cachedConfig = config;
+    // Deep clone to avoid mutating the original config
+    this.cachedConfig = JSON.parse(JSON.stringify(config));
   }
 
   getConfig(): UserConfig {
@@ -212,6 +231,33 @@ export class ConfigService {
       config.display.line3!.enabled = Boolean(value);
     } else if (key === 'line3.items') {
       config.display.line3!.items = Array.isArray(value) ? value : value.split(',').map((s: string) => s.trim());
+    }
+    
+    this.saveConfig(config);
+  }
+
+  setSupabaseConfig(key: string, value: string | boolean | number): void {
+    const config = this.getConfig();
+    
+    if (!config.supabase) {
+      config.supabase = {};
+    }
+
+    if (key === 'url') {
+      config.supabase.url = value as string;
+    } else if (key === 'apiKey') {
+      config.supabase.apiKey = value as string;
+    } else if (key === 'autoSync') {
+      config.supabase.autoSync = value as boolean;
+    } else if (key === 'syncInterval') {
+      const numValue = Number(value);
+      if (!isNaN(numValue) && numValue > 0) {
+        config.supabase.syncInterval = numValue;
+      } else {
+        throw new Error(`Invalid syncInterval value: ${value}. Must be a positive number.`);
+      }
+    } else {
+      throw new Error(`Unknown Supabase configuration key: ${key}`);
     }
     
     this.saveConfig(config);
