@@ -38,7 +38,7 @@ describe('CCUsageReader', () => {
 
       const result = await reader.readTokenUsage('2024-01-15', '2024-01-16');
 
-      expect(mockExec).toHaveBeenCalledWith('npx ccusage daily --json --since 20240115 --until 20240116');
+      expect(mockExec).toHaveBeenCalledWith('npx ccusage@latest daily --json --since 20240115 --until 20240116');
       expect(result).toHaveLength(2);
       
       expect(result[0]).toEqual({
@@ -77,7 +77,7 @@ describe('CCUsageReader', () => {
 
       await reader.readTokenUsage();
 
-      expect(mockExec).toHaveBeenCalledWith('npx ccusage daily --json');
+      expect(mockExec).toHaveBeenCalledWith('npx ccusage@latest daily --json');
     });
 
     it('should throw error when ccusage command has stderr output', async () => {

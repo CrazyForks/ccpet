@@ -2,6 +2,7 @@ import { CheckCommand } from './commands/CheckCommand';
 import { ConfigCommand } from './commands/ConfigCommand';
 import { ResetCommand } from './commands/ResetCommand';
 import { SyncCommand } from './commands/SyncCommand';
+import { LeaderboardCommand } from './commands/LeaderboardCommand';
 import { main as ccpetMain } from './ccpet';
 
 // Import package.json to get version
@@ -16,6 +17,7 @@ interface Command {
 const commands: Command[] = [
   new CheckCommand(),
   new ConfigCommand(),
+  new LeaderboardCommand(),
   new ResetCommand(),
   new SyncCommand()
 ];
@@ -43,6 +45,7 @@ function showHelp() {
   console.log('  ccpet check             # Manually check pet status');  
   console.log('  ccpet config list       # List current configuration');
   console.log('  ccpet config set colors.petExpression "#FF0000"');
+  console.log('  ccpet leaderboard       # Show pet leaderboard rankings');
   console.log('  ccpet reset             # Reset pet to initial state');
   console.log('  ccpet sync              # Sync pet data to Supabase');
 }

@@ -38,6 +38,24 @@ export interface SyncResult {
   message: string;
 }
 
+// 排行榜查询选项
+export interface LeaderboardQueryOptions {
+  period: 'today' | '7d' | '30d' | 'all';
+  sortBy: 'tokens' | 'cost' | 'survival';
+  limit: number;
+}
+
+// 排行榜条目接口
+export interface LeaderboardEntry {
+  rank: number;
+  pet_name: string;
+  animal_type: string;
+  total_tokens: number;
+  total_cost: number;
+  survival_days: number;
+  is_alive: boolean;
+}
+
 // HTTP请求错误类
 export class SupabaseHTTPError extends Error {
   constructor(
@@ -253,6 +271,67 @@ export class SupabaseSyncService {
   }
 
   /**
+   * 查询排行榜数据
+   * @param options 查询选项
+   * @returns 排行榜条目数组
+   */
+  public async queryLeaderboard(options: LeaderboardQueryOptions): Promise<LeaderboardEntry[]> {
+    try {
+      const dateFilter = this._buildDateFilter(options.period);
+      
+      const url = `${this.baseUrl}/rest/v1/rpc/get_leaderboard`;
+      const payload = JSON.stringify({
+        date_filter: dateFilter,
+        sort_by: options.sortBy,
+        limit_count: options.limit
+      });
+
+      const { statusCode, body } = await this.deps.httpsRequest!({
+        method: 'POST',
+        headers: this.headers,
+        url
+      } as any, payload);
+
+      if (statusCode !== 200) {
+        throw new SupabaseHTTPError(`Failed to query leaderboard: ${statusCode}`, statusCode, body);
+      }
+
+      const rawData = JSON.parse(body);
+      return this._processLeaderboardData(rawData);
+    } catch (error) {
+      throw new SupabaseSyncError(
+        `Failed to query leaderboard: ${error instanceof Error ? error.message : String(error)}`,
+        error instanceof Error ? error : undefined
+      );
+    }
+  }
+
+  /**
+   * 使用简化查询获取排行榜数据（如果存储过程不可用）
+   * @param options 查询选项
+   * @returns 排行榜条目数组
+   */
+  public async queryLeaderboardSimple(options: LeaderboardQueryOptions): Promise<LeaderboardEntry[]> {
+    try {
+      // 分步查询：先查询宠物记录，再查询聚合的token使用数据
+      const petsData = await this._queryPetRecords();
+      const tokenData = await this._queryAggregatedTokenUsage(options.period);
+      
+      // 合并数据
+      const leaderboardData = this._mergeLeaderboardData(petsData, tokenData);
+      
+      // 排序和限制
+      const sortedData = this._sortLeaderboardData(leaderboardData, options.sortBy);
+      return sortedData.slice(0, options.limit);
+    } catch (error) {
+      throw new SupabaseSyncError(
+        `Failed to query leaderboard (simple): ${error instanceof Error ? error.message : String(error)}`,
+        error instanceof Error ? error : undefined
+      );
+    }
+  }
+
+  /**
    * 同步Token使用记录批次
    * @param batch 批次记录
    * @param status 同步状态
@@ -278,6 +357,188 @@ export class SupabaseSyncService {
       status.failed += batch.length;
       status.errors.push(`Batch sync error: ${error instanceof Error ? error.message : String(error)}`);
     }
+  }
+
+  /**
+   * 构建日期过滤器
+   * @param period 时间段
+   * @returns 日期过滤条件
+   */
+  private _buildDateFilter(period: 'today' | '7d' | '30d' | 'all'): string {
+    const now = new Date();
+    let startDate: string;
+
+    switch (period) {
+      case 'today':
+        // 对于今天，使用等于今天的日期，而不是大于等于
+        startDate = now.toISOString().split('T')[0];
+        return `eq.${startDate}`;
+        break;
+      case '7d':
+        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        startDate = weekAgo.toISOString().split('T')[0];
+        break;
+      case '30d':
+        const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        startDate = monthAgo.toISOString().split('T')[0];
+        break;
+      case 'all':
+        return 'all';
+      default:
+        startDate = now.toISOString().split('T')[0];
+    }
+
+    return `gte.${startDate}`;
+  }
+
+
+  /**
+   * 查询所有宠物记录
+   * @returns 宠物记录数组
+   */
+  private async _queryPetRecords(): Promise<any[]> {
+    const url = `${this.baseUrl}/rest/v1/pet_records?select=*`;
+
+    const { statusCode, body } = await this.deps.httpsRequest!({
+      method: 'GET',
+      headers: this.headers,
+      url
+    } as any, '');
+
+    if (statusCode !== 200) {
+      throw new SupabaseHTTPError(`Failed to query pet records: ${statusCode}`, statusCode, body);
+    }
+
+    return JSON.parse(body);
+  }
+
+  /**
+   * 查询聚合的Token使用数据
+   * @param period 时间段
+   * @returns 聚合后的token使用数据
+   */
+  private async _queryAggregatedTokenUsage(period: 'today' | '7d' | '30d' | 'all'): Promise<any[]> {
+    let url = `${this.baseUrl}/rest/v1/token_usage?select=pet_id,total_tokens,cost_usd`;
+
+    // 添加日期过滤
+    if (period !== 'all') {
+      const dateFilter = this._buildDateFilter(period);
+      url += `&usage_date=${dateFilter}`;
+    }
+
+    const { statusCode, body } = await this.deps.httpsRequest!({
+      method: 'GET',
+      headers: this.headers,
+      url
+    } as any, '');
+
+    if (statusCode !== 200) {
+      throw new SupabaseHTTPError(`Failed to query aggregated token usage: ${statusCode}`, statusCode, body);
+    }
+
+    const rawData = JSON.parse(body);
+    
+    // 对于"today"，如果没有数据就返回空数组，不回退到历史数据
+    
+    // 在应用端进行聚合
+    const aggregated = new Map<string, { sum_tokens: number, sum_cost: number }>();
+    
+    rawData.forEach((item: any) => {
+      const petId = item.pet_id;
+      if (!aggregated.has(petId)) {
+        aggregated.set(petId, { sum_tokens: 0, sum_cost: 0 });
+      }
+      const current = aggregated.get(petId)!;
+      current.sum_tokens += parseInt(item.total_tokens) || 0;
+      current.sum_cost += parseFloat(item.cost_usd) || 0;
+    });
+
+    // 转换为数组格式
+    return Array.from(aggregated.entries()).map(([petId, data]) => ({
+      pet_id: petId,
+      sum: data.sum_tokens,
+      sum_1: data.sum_cost
+    }));
+  }
+
+  /**
+   * 合并宠物数据和token使用数据
+   * @param petsData 宠物数据
+   * @param tokenData token使用数据
+   * @returns 合并后的排行榜数据
+   */
+  private _mergeLeaderboardData(petsData: any[], tokenData: any[]): LeaderboardEntry[] {
+    const tokenMap = new Map<string, any>();
+    tokenData.forEach(item => {
+      tokenMap.set(item.pet_id, item);
+    });
+
+    return petsData.map((pet, index) => {
+      const tokenInfo = tokenMap.get(pet.id) || { sum: 0, sum_1: 0 };
+      const now = new Date();
+      const birthTime = new Date(pet.birth_time);
+      const deathTime = pet.death_time ? new Date(pet.death_time) : null;
+      
+      // 计算存活天数
+      const endTime = deathTime || now;
+      const survivalDays = Math.floor((endTime.getTime() - birthTime.getTime()) / (24 * 60 * 60 * 1000));
+
+      return {
+        rank: index + 1, // 临时排名，将在排序后重新分配
+        pet_name: pet.pet_name,
+        animal_type: pet.animal_type,
+        total_tokens: parseInt(tokenInfo.sum) || 0,
+        total_cost: parseFloat(tokenInfo.sum_1) || 0,
+        survival_days: survivalDays,
+        is_alive: !deathTime
+      };
+    });
+  }
+
+  /**
+   * 排序排行榜数据
+   * @param data 排行榜数据
+   * @param sortBy 排序字段
+   * @returns 排序后的数据
+   */
+  private _sortLeaderboardData(data: LeaderboardEntry[], sortBy: 'tokens' | 'cost' | 'survival'): LeaderboardEntry[] {
+    const sorted = [...data];
+    
+    switch (sortBy) {
+      case 'tokens':
+        sorted.sort((a, b) => b.total_tokens - a.total_tokens);
+        break;
+      case 'cost':
+        sorted.sort((a, b) => b.total_cost - a.total_cost);
+        break;
+      case 'survival':
+        sorted.sort((a, b) => b.survival_days - a.survival_days);
+        break;
+    }
+
+    // 重新分配排名
+    sorted.forEach((entry, index) => {
+      entry.rank = index + 1;
+    });
+
+    return sorted;
+  }
+
+  /**
+   * 处理排行榜数据（用于存储过程返回的数据）
+   * @param rawData 原始数据
+   * @returns 处理后的排行榜数据
+   */
+  private _processLeaderboardData(rawData: any[]): LeaderboardEntry[] {
+    return rawData.map((item, index) => ({
+      rank: index + 1,
+      pet_name: item.pet_name,
+      animal_type: item.animal_type,
+      total_tokens: parseInt(item.total_tokens) || 0,
+      total_cost: parseFloat(item.total_cost) || 0,
+      survival_days: parseInt(item.survival_days) || 0,
+      is_alive: item.is_alive || false
+    }));
   }
 
   /**

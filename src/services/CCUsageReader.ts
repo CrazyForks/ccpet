@@ -196,7 +196,7 @@ export class CCUsageReader {
    * @returns 完整的ccusage命令
    */
   private _buildCCUsageCommand(startDate?: string, endDate?: string): string {
-    let command = 'npx ccusage daily --json';
+    let command = 'npx ccusage@latest daily --json';
 
     if (startDate) {
       // 转换YYYY-MM-DD格式到YYYYMMDD格式

@@ -102,6 +102,52 @@ ccpet reset --help       # 显示重置命令帮助
 - ✅ 测试墓地功能
 - ✅ **新功能:** 在 `~/.claude-pet/graveyard/` 中自动保存历史
 
+#### 同步命令
+```bash
+ccpet sync               # 将宠物和token使用数据同步到Supabase
+ccpet sync --dry-run     # 预览同步而不实际执行
+ccpet sync --verbose     # 显示详细的同步进度
+ccpet sync --start-date 2024-01-01  # 从指定日期开始同步
+ccpet sync --end-date 2024-12-31    # 同步到指定日期
+ccpet sync --help        # 显示同步命令帮助
+```
+使用 `ccpet sync` 来：
+- ✅ 将宠物记录和token使用情况上传到Supabase数据库
+- ✅ 启用跨设备宠物历史同步功能
+- ✅ 支持增量同步以提高效率
+- ✅ 从宠物出生时间智能检测日期范围
+- ✅ 大数据集批量处理
+- ✅ **新功能:** 宠物墓地数据的云备份
+
+**设置：**
+ccpet已预配置Supabase用于即时同步 - 安装后即可开始使用！
+
+#### 排行榜命令
+```bash
+ccpet leaderboard        # 显示今日token排行榜
+ccpet leaderboard --period 7d     # 显示7天排行榜
+ccpet leaderboard --period 30d    # 显示30天排行榜
+ccpet leaderboard --period all    # 显示全时段排行榜
+ccpet leaderboard --sort cost     # 按成本排序而非token数量
+ccpet leaderboard --sort survival # 按存活时间排序
+ccpet leaderboard --limit 20      # 显示前20名
+ccpet leaderboard --verbose       # 显示详细查询信息
+ccpet leaderboard --help          # 显示排行榜命令帮助
+```
+使用 `ccpet leaderboard` 来：
+- ✅ 将您宠物的表现与历史数据进行比较
+- ✅ 跟踪不同时间段的token消耗和成本
+- ✅ 监控宠物存活统计和成就
+- ✅ 漂亮的CLI表格，支持emoji和格式化
+- ✅ Supabase不可用时自动降级到离线模式
+- ✅ **新功能:** 排名重置的实时倒计时
+
+**排行榜功能：**
+- **时间段**: `today`（今日）, `7d`（7天）, `30d`（30天）, `all`（全部）
+- **排序选项**: `tokens`（默认）, `cost`（成本）, `survival`（存活） 
+- **显示内容**: 排名、宠物名称、类型、Token数量、成本、存活天数、状态
+- **离线模式**: 云服务不可用时自动使用本地墓地数据
+
 **配置选项：**
 ```bash
 # 颜色（格式：#RRGGBB 或 #RRGGBB:bright 或 #RRGGBB:bright:bold）

@@ -102,6 +102,52 @@ Use `ccpet reset` to:
 - ✅ Test the graveyard functionality
 - ✅ **NEW:** Automatic history preservation in `~/.claude-pet/graveyard/`
 
+#### Sync Command
+```bash
+ccpet sync               # Sync pet and token usage data to Supabase
+ccpet sync --dry-run     # Preview sync without making changes
+ccpet sync --verbose     # Show detailed sync progress
+ccpet sync --start-date 2024-01-01  # Sync from specific date
+ccpet sync --end-date 2024-12-31    # Sync until specific date
+ccpet sync --help        # Show sync command help
+```
+Use `ccpet sync` to:
+- ✅ Upload pet records and token usage to Supabase database
+- ✅ Enable cross-device pet history synchronization
+- ✅ Support incremental syncing for efficiency
+- ✅ Smart date range detection from pet birth time
+- ✅ Batch processing for large datasets
+- ✅ **NEW:** Cloud backup for pet graveyard data
+
+**Setup:**
+ccpet comes with Supabase pre-configured for instant sync - just install and start using!
+
+#### Leaderboard Command
+```bash
+ccpet leaderboard        # Show today's token leaderboard
+ccpet leaderboard --period 7d     # Show 7-day leaderboard
+ccpet leaderboard --period 30d    # Show 30-day leaderboard
+ccpet leaderboard --period all    # Show all-time leaderboard
+ccpet leaderboard --sort cost     # Sort by cost instead of tokens
+ccpet leaderboard --sort survival # Sort by survival time
+ccpet leaderboard --limit 20      # Show top 20 entries
+ccpet leaderboard --verbose       # Show detailed query info
+ccpet leaderboard --help          # Show leaderboard command help
+```
+Use `ccpet leaderboard` to:
+- ✅ Compare your pet's performance with historical data
+- ✅ Track token consumption and costs across time periods
+- ✅ Monitor pet survival statistics and achievements
+- ✅ Beautiful CLI table with emoji and formatting
+- ✅ Automatic fallback to offline mode when Supabase unavailable
+- ✅ **NEW:** Real-time countdown timers for ranking resets
+
+**Leaderboard Features:**
+- **Time Periods**: `today`, `7d` (7 days), `30d` (30 days), `all` (all-time)
+- **Sorting Options**: `tokens` (default), `cost`, `survival` 
+- **Display**: Rank, Pet Name, Type, Tokens, Cost, Survival Days, Status
+- **Offline Mode**: Automatically uses local graveyard data when cloud unavailable
+
 **Configuration Options:**
 ```bash
 # Colors (format: #RRGGBB or #RRGGBB:bright or #RRGGBB:bright:bold)

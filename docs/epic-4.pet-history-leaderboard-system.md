@@ -116,12 +116,23 @@
 
 - 创建纯静态 HTML/CSS/JavaScript 排行榜页面
 - 通过 Supabase 客户端 API 读取排行榜数据
-- 实现多种排名模式：
-  - 存活时间排行榜（基于宠物生存天数）
-  - 当月token消耗排行榜
-  - 总token消耗排行榜
+- 实现多种排名模式（与CLI版本保持一致）：
+  - Today - 今日排行榜（每日UTC午夜重置）
+  - Last 7 Days - 最近7天排行榜
+  - Last 30 Days - 最近30天排行榜  
+  - All Time - 全时期排行榜
+- 支持多种排序方式：
+  - Tokens - 按token消耗排序（默认）
+  - Cost - 按金额成本排序
+  - Survival - 按存活时间排序
+- 网页显示元素（与你提供的参考页面一致）：
+  - 排名、用户名/宠物名称、头像/动物emoji
+  - Token数量（格式化显示，如20,753,508）
+  - 成本金额（美元格式，如$47.90）
+  - 存活时间（天数小时格式，如15d 8h）
+  - 实时倒计时显示（距离重置时间）
 - 响应式设计，支持移动端查看
-- 显示宠物名称、动物类型、关键指标
+- 标签页切换不同时间段，排序按钮切换不同指标
 
 ## 兼容性要求
 
@@ -147,6 +158,53 @@
 - [x] 所有现有宠物功能继续正常工作，无回归
 - [x] 新的墓地、命名和排行榜功能有全面的测试覆盖
 - [x] 文档已更新，包含新命令和功能
+
+### Story 4.6: CLI排行榜命令与金额消耗排行
+
+**作为一个开发者**，我希望能通过命令行直接查看宠物排行榜并看到金额消耗排名，**这样** 我就能快速了解我的宠物在各项指标上的表现，而不需要打开网页。
+
+**实现细节**：
+
+- 新增 `ccpet leaderboard` 命令，支持多种排行模式：
+  ```bash
+  ccpet leaderboard                    # 默认显示今日排行榜
+  ccpet leaderboard --period today     # 今日排行榜
+  ccpet leaderboard --period 7d        # 最近7天排行榜
+  ccpet leaderboard --period 30d       # 最近30天排行榜  
+  ccpet leaderboard --period all       # 全时期排行榜
+  ccpet leaderboard --limit 20         # 显示前20名（默认10名）
+  ccpet leaderboard --sort tokens      # 按tokens排序（默认）
+  ccpet leaderboard --sort cost        # 按成本排序
+  ccpet leaderboard --sort survival    # 按存活时间排序
+  ```
+
+- CLI显示元素（参考网页版设计）：
+  ```
+  ┌──────────────────────────────────────────────────────────────────────┐
+  │                          Today Leaderboard                          │
+  │                     Daily leaderboard resets at midnight UTC        │
+  │                           Next reset: 22:36:24                      │
+  └──────────────────────────────────────────────────────────────────────┘
+  
+  RANK  PET NAME      ANIMAL    TOKENS        COST      SURVIVAL
+  ────────────────────────────────────────────────────────────────────── 
+    1   Fluffy        🐱      20,753,508    $47.90     15d 8h
+    2   Whiskers      🐶      10,693,141    $24.28     12d 4h  
+    3   Buddy         🐹       5,773,127    $15.24     8d 12h
+    4   Charlie       🐰       3,847,685    $12.04     6d 2h
+    5   Luna          🐸       3,143,802     $2.28     4d 18h
+  ```
+
+- 支持排序切换和实时计时器显示
+- 增强Story 4.5网页版，在网页版也添加金额消耗排行功能
+- 错误处理：Supabase连接失败时显示本地墓地数据
+- 支持配置默认显示模式和数量
+
+**技术集成**：
+- 扩展现有CLI命令架构，添加LeaderboardCommand类
+- 复用Story 4.4的Supabase查询逻辑，增加成本统计和时间段筛选
+- 集成本地墓地数据作为离线降级方案
+- 使用表格格式化库（如cli-table3）美化CLI显示
 
 ## 技术实现说明
 

@@ -57,7 +57,6 @@
     "url": "https://github.com/terryso/ccpet/issues"
   },
   "dependencies": {
-    "ccusage": "^16.2.0",
     "uuid": "^11.1.0"
   }
 }
