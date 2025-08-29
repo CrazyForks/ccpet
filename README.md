@@ -4,8 +4,9 @@
 [![Downloads](https://img.shields.io/npm/dm/ccpet.svg)](https://www.npmjs.com/package/ccpet)
 [![Node.js CI](https://github.com/terryso/ccpet/workflows/CI/badge.svg)](https://github.com/terryso/ccpet/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Web Leaderboard](https://img.shields.io/badge/Web-Leaderboard-blue?logo=chart-line)](https://ccpet.surge.sh/)
 
-[简体中文 / Chinese](README.zh-CN.md)
+[简体中文 / Chinese](README.zh-CN.md) | [🏆 Web Leaderboard](https://ccpet.surge.sh/)
 
 A virtual pet for your Claude Code status line. The pet's energy decays over time, increases when you consume tokens, and persists across sessions.
 
@@ -122,6 +123,9 @@ Use `ccpet sync` to:
 **Setup:**
 ccpet comes with Supabase pre-configured for instant sync - just install and start using!
 
+**Web Leaderboard:**
+View the global pet leaderboard online at [https://ccpet.surge.sh/](https://ccpet.surge.sh/) - see how your pet ranks against others worldwide!
+
 #### Leaderboard Command
 ```bash
 ccpet leaderboard        # Show today's token leaderboard
@@ -147,6 +151,7 @@ Use `ccpet leaderboard` to:
 - **Sorting Options**: `tokens` (default), `cost`, `survival` 
 - **Display**: Rank, Pet Name, Type, Tokens, Cost, Survival Days, Status
 - **Offline Mode**: Automatically uses local graveyard data when cloud unavailable
+- **Web Interface**: View online leaderboard at [https://ccpet.surge.sh/](https://ccpet.surge.sh/)
 
 **Configuration Options:**
 ```bash

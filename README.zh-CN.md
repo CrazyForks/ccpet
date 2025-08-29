@@ -4,8 +4,9 @@
 [![Downloads](https://img.shields.io/npm/dm/ccpet.svg)](https://www.npmjs.com/package/ccpet)
 [![Node.js CI](https://github.com/terryso/ccpet/workflows/CI/badge.svg)](https://github.com/terryso/ccpet/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Web Leaderboard](https://img.shields.io/badge/Web-排行榜-blue?logo=chart-line)](https://ccpet.surge.sh/)
 
-[English](README.md)
+[English](README.md) | [🏆 在线排行榜](https://ccpet.surge.sh/)
 
 一个 Claude Code 状态栏虚拟宠物。宠物的能量会随时间衰减、在你消耗 token 时增加，并在会话之间持久化保存。
 
