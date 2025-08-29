@@ -347,6 +347,7 @@ describe('SyncCommand', () => {
         id: 'pet-uuid-123',
         pet_name: 'TestPet',
         animal_type: AnimalType.CAT,
+        emoji: '🐱', // 添加emoji字段期望
         birth_time: '2024-01-01T00:00:00.000Z'
       });
     });

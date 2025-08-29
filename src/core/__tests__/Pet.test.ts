@@ -11,6 +11,7 @@ describe('Pet Core Logic', () => {
     energy: 50,
     expression: '(o_o)',
     animalType: AnimalType.CAT, // 默认使用CAT类型进行测试
+    // 不设置emoji，让Pet构造函数根据animalType自动设置
     birthTime: new Date('2024-01-01T00:00:00Z'), // 宠物诞生时间
     lastFeedTime: new Date('2024-01-01T00:00:00Z'),
     totalTokensConsumed: 0,
@@ -25,7 +26,11 @@ describe('Pet Core Logic', () => {
       const pet = new Pet(initialState, mockDependencies);
       
       const state = pet.getState();
-      expect(state).toEqual(initialState);
+      // Pet constructor should add emoji based on animal type
+      expect(state).toEqual({
+        ...initialState,
+        emoji: '🐱' // CAT emoji should be added
+      });
     });
 
     it('should return a copy of state, not the original object', () => {
