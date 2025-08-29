@@ -1,5 +1,6 @@
 import { LeaderboardEntry } from '../services/SupabaseSyncService';
 import { ANIMAL_CONFIGS, AnimalType } from '../core/config';
+import Table from 'cli-table3';
 
 interface LeaderboardFormatOptions {
   period: 'today' | '7d' | '30d' | 'all';
@@ -92,67 +93,39 @@ export class LeaderboardFormatter {
   }
 
   private _formatTable(entries: LeaderboardEntry[], options: LeaderboardFormatOptions): string {
-    const headers = ['Rank', 'Pet Name', 'Type', 'Tokens', 'Cost', 'Survival', 'Status'];
-    
-    // 计算列宽
-    const colWidths = this._calculateColumnWidths(entries, headers);
-    
-    const output: string[] = [];
-    
-    // 表头
-    const headerRow = headers.map((header, i) => header.padEnd(colWidths[i])).join(' │ ');
-    output.push(`│ ${headerRow} │`);
-    
-    // 分隔线
-    const separatorRow = colWidths.map(width => '─'.repeat(width)).join('─┼─');
-    output.push(`├─${separatorRow}─┤`);
-    
-    // 数据行
-    for (const entry of entries) {
-      const row = this._formatTableRow(entry, colWidths, options);
-      output.push(`│ ${row} │`);
-    }
-    
-    // 底部边框
-    const bottomBorder = colWidths.map(width => '─'.repeat(width)).join('─┴─');
-    output.push(`└─${bottomBorder}─┘`);
-    
-    return output.join('\n');
+    const table = new Table({
+      head: ['Rank', 'Pet Name', 'Type', 'Tokens', 'Cost', 'Survival', 'Status'],
+      style: {
+        head: ['cyan'],
+        border: ['grey']
+      },
+      colWidths: [6, 15, 12, 12, 10, 10, 12], // 设置固定列宽
+      wordWrap: true
+    });
+
+    // 添加数据行
+    entries.forEach(entry => {
+      const row = this._formatTableRowData(entry, options);
+      table.push(row);
+    });
+
+    return table.toString();
   }
 
-  private _calculateColumnWidths(entries: LeaderboardEntry[], headers: string[]): number[] {
-    const minWidths = headers.map(header => header.length);
-    
-    // 基于数据计算最小宽度
-    const maxPetNameLength = entries.length > 0 ? Math.max(...entries.map(e => e.pet_name.length)) : 8;
-    const dataWidths = [
-      4, // Rank - 最多4位数
-      Math.max(maxPetNameLength, 8), // Pet Name - 最少8字符
-      8, // Type - emoji + 空格 + 最长动物名（增加宽度）
-      12, // Tokens - 格式化后的数字宽度
-      8, // Cost - $xx.xx格式
-      8, // Survival - "xxx days"
-      8  // Status - "Alive" 或 "Dead" （增加宽度）
-    ];
-    
-    return minWidths.map((minWidth, i) => Math.max(minWidth, dataWidths[i]));
-  }
-
-  private _formatTableRow(entry: LeaderboardEntry, colWidths: number[], options: LeaderboardFormatOptions): string {
-    const rank = `#${entry.rank}`.padEnd(colWidths[0]);
-    const petName = entry.pet_name.padEnd(colWidths[1]);
+  private _formatTableRowData(entry: LeaderboardEntry, options: LeaderboardFormatOptions): string[] {
+    const rank = `#${entry.rank}`;
+    const petName = entry.pet_name;
     
     // 获取动物emoji和名称
     const animalConfig = ANIMAL_CONFIGS[entry.animal_type as AnimalType];
     const animalDisplay = animalConfig ? `${animalConfig.emoji} ${animalConfig.name}` : entry.animal_type;
-    const animal = animalDisplay.padEnd(colWidths[2]);
     
-    const tokens = this._formatNumber(entry.total_tokens).padEnd(colWidths[3]);
-    const cost = options.isOfflineMode ? 'N/A'.padEnd(colWidths[4]) : `$${entry.total_cost.toFixed(2)}`.padEnd(colWidths[4]);
-    const survival = `${entry.survival_days}d`.padEnd(colWidths[5]);
-    const status = (entry.is_alive ? '✅ Alive' : '💀 Dead').padEnd(colWidths[6]);
+    const tokens = this._formatNumber(entry.total_tokens);
+    const cost = options.isOfflineMode ? 'N/A' : `$${entry.total_cost.toFixed(2)}`;
+    const survival = `${entry.survival_days}d`;
+    const status = entry.is_alive ? '✅ Alive' : '💀 Dead';
     
-    return [rank, petName, animal, tokens, cost, survival, status].join(' │ ');
+    return [rank, petName, animalDisplay, tokens, cost, survival, status];
   }
 
   private _formatNumber(num: number): string {

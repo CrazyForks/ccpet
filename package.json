@@ -57,6 +57,7 @@
     "url": "https://github.com/terryso/ccpet/issues"
   },
   "dependencies": {
+    "cli-table3": "^0.6.5",
     "uuid": "^11.1.0"
   }
 }
