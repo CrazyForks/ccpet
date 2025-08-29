@@ -13,6 +13,7 @@ export interface PetRecord {
   id: string; // 使用本地宠物的UUID作为主键
   pet_name: string;
   animal_type: string;
+  emoji?: string; // 宠物表情符号
   birth_time: string; // ISO string
   death_time?: string; // ISO string
   survival_days?: number;

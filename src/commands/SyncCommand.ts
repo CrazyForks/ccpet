@@ -91,6 +91,7 @@ export class SyncCommand {
         id: currentPetState.uuid, // 使用本地宠物的UUID作为主键
         pet_name: currentPetState.petName,
         animal_type: currentPetState.animalType,
+        emoji: currentPetState.emoji || ANIMAL_CONFIGS[currentPetState.animalType as AnimalType]?.emoji,
         birth_time: currentPetState.birthTime.toISOString(),
         // 如果宠物已死亡，计算死亡时间和存活天数
         ...(currentPetState.energy === 0 ? {

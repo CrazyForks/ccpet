@@ -6,6 +6,7 @@ export interface IPetState {
   energy: number;
   expression: string;
   animalType: AnimalType; // 动物类型字段
+  emoji?: string; // 宠物表情符号
   birthTime: Date; // 宠物诞生时间
   lastFeedTime: Date;
   totalTokensConsumed: number;
@@ -34,11 +35,12 @@ export class Pet {
   private observers: PetObserver[] = [];
 
   constructor(initialState: IPetState, dependencies: IPetDependencies) {
-    // Initialize state with backward compatibility for missing petName and uuid
+    // Initialize state with backward compatibility for missing petName, uuid, and emoji
     this.state = {
       ...initialState,
       uuid: initialState.uuid || uuidv4(),
-      petName: initialState.petName || generateRandomPetName()
+      petName: initialState.petName || generateRandomPetName(),
+      emoji: initialState.emoji || ANIMAL_CONFIGS[initialState.animalType]?.emoji || ANIMAL_CONFIGS[AnimalType.CAT].emoji
     };
     this.deps = dependencies;
     this._updateExpression(); // Ensure expression matches energy level
@@ -181,8 +183,8 @@ export class Pet {
   }
 
   public getAnimalEmoji(): string {
-    const animalConfig = ANIMAL_CONFIGS[this.state.animalType];
-    return animalConfig?.emoji || ANIMAL_CONFIGS[AnimalType.CAT].emoji; // 默认为猫emoji
+    // Prefer stored emoji, fallback to config-based emoji
+    return this.state.emoji || ANIMAL_CONFIGS[this.state.animalType]?.emoji || ANIMAL_CONFIGS[AnimalType.CAT].emoji;
   }
 
   public isDead(): boolean {
@@ -209,6 +211,7 @@ export class Pet {
         energy: this.deps.config.INITIAL_ENERGY,
         expression: this.deps.config.STATE_EXPRESSIONS.HAPPY,
         animalType: newAnimalType,
+        emoji: ANIMAL_CONFIGS[newAnimalType]?.emoji || ANIMAL_CONFIGS[AnimalType.CAT].emoji,
         birthTime: now,
         lastFeedTime: now,
         totalTokensConsumed: 0,
