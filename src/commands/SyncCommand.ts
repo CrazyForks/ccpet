@@ -23,9 +23,7 @@ export class SyncCommand {
   async execute(args: string[]): Promise<void> {
     const options = this.parseArguments(args);
 
-    if (options.verbose) {
-      console.log('🔄 Starting Supabase sync process...');
-    }
+    console.log('🔄 Starting Supabase sync process...');
 
     try {
       // 验证Supabase配置
@@ -46,9 +44,7 @@ export class SyncCommand {
         process.exit(1);
       }
       
-      if (options.verbose) {
-        console.log(`📂 Loaded pet data: ${currentPetState.petName} (${currentPetState.animalType})`);
-      }
+      console.log(`📂 Loaded pet data: ${currentPetState.petName} (${currentPetState.animalType})`);
 
       // 初始化Supabase同步服务（需要提前初始化用于查询数据）
       const syncService = new SupabaseSyncService({ config: supabaseConfig });
@@ -56,17 +52,13 @@ export class SyncCommand {
       // 智能确定同步日期范围
       const { startDate, endDate } = await this.determineSyncDateRange(options, currentPetState, syncService);
       
-      if (options.verbose) {
-        console.log(`📅 Sync date range: ${startDate} to ${endDate}`);
-      }
+      console.log(`📅 Sync date range: ${startDate} to ${endDate}`);
 
       // 读取ccusage数据
       const ccusageReader = new CCUsageReader();
       const tokenUsageRecords = await ccusageReader.readTokenUsage(startDate, endDate);
       
-      if (options.verbose) {
-        console.log(`📊 Found ${tokenUsageRecords.length} token usage records`);
-      }
+      console.log(`📊 Found ${tokenUsageRecords.length} token usage records`);
 
       if (options.dryRun) {
         console.log('🔍 DRY RUN MODE - No data will be synced');
@@ -83,9 +75,7 @@ export class SyncCommand {
 
 
       // 同步宠物记录
-      if (options.verbose) {
-        console.log('🐾 Syncing pet record...');
-      }
+      console.log('🐾 Syncing pet record...');
 
       const petRecord: PetRecord = {
         id: currentPetState.uuid, // 使用本地宠物的UUID作为主键
@@ -101,9 +91,7 @@ export class SyncCommand {
       };
 
       const petId = await syncService.syncPetRecord(petRecord);
-      if (options.verbose) {
-        console.log(`✅ Pet record synced with ID: ${petId}`);
-      }
+      console.log(`✅ Pet record synced with ID: ${petId}`);
 
       // 检查需要同步的记录
       const recordsToSync = await syncService.getRecordsToSync(petId, tokenUsageRecords);
@@ -113,9 +101,7 @@ export class SyncCommand {
         return;
       }
 
-      if (options.verbose) {
-        console.log(`📤 Syncing ${recordsToSync.length} new token usage records...`);
-      }
+      console.log(`📤 Syncing ${recordsToSync.length} new token usage records...`);
 
       // 同步token使用记录
       const syncResult = await syncService.syncTokenUsageRecords(recordsToSync);
@@ -135,7 +121,7 @@ export class SyncCommand {
 
     } catch (error) {
       console.error(`❌ Sync failed: ${error instanceof Error ? error.message : String(error)}`);
-      if (options.verbose && error instanceof Error) {
+      if (error instanceof Error) {
         console.error('Stack trace:', error.stack);
       }
       process.exit(1);
