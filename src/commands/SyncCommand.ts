@@ -301,12 +301,11 @@ export class SyncCommand {
           endDate: today
         };
       } else {
-        // 后续同步：从最后一条记录的日期的下一天开始同步到当前日期
+        // 后续同步：从最后一条记录的日期开始同步，确保最后一天的数据完整
         const lastSyncDate = await this.getLastSyncDate(petState.uuid, syncService);
-        const nextDay = this.getNextDay(lastSyncDate);
         
         return {
-          startDate: nextDay,
+          startDate: lastSyncDate, // 修复：从最后一天开始重新同步而不是下一天
           endDate: today
         };
       }
@@ -384,14 +383,4 @@ export class SyncCommand {
     return fallback.toISOString().split('T')[0];
   }
 
-  /**
-   * 获取指定日期的下一天
-   * @param dateStr 日期字符串 (YYYY-MM-DD)
-   * @returns 下一天的日期 (YYYY-MM-DD)
-   */
-  private getNextDay(dateStr: string): string {
-    const date = new Date(dateStr + 'T00:00:00.000Z');
-    date.setUTCDate(date.getUTCDate() + 1);
-    return date.toISOString().split('T')[0];
-  }
 }

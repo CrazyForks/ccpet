@@ -114,6 +114,12 @@ export class SupabaseSyncService {
    */
   public async syncPetRecord(petRecord: PetRecord): Promise<string> {
     try {
+      // 检查是否需要更新宠物记录
+      const existingRecord = await this._getPetRecord(petRecord.id);
+      if (existingRecord && !this._needsPetUpdate(existingRecord, petRecord)) {
+        return petRecord.id; // 跳过不必要的更新
+      }
+
       // 使用宠物UUID进行upsert操作（插入或更新）
       await this._upsertPetRecord(petRecord);
       return petRecord.id;
@@ -180,13 +186,22 @@ export class SupabaseSyncService {
    */
   public async getRecordsToSync(petId: string, records: TokenUsageRecord[]): Promise<TokenUsageRecordWithPetId[]> {
     try {
-      // 获取已存在的记录日期
-      const existingDates = await this._getExistingUsageDates(petId);
-      const existingDatesSet = new Set(existingDates);
-
-      // 过滤出需要同步的记录
+      // 获取已存在的记录（包含详细信息用于精确比较）
+      const existingRecords = await this._getExistingUsageRecords(petId, records);
+      const existingRecordsMap = new Map<string, TokenUsageRecord>();
+      
+      // 为现有记录创建索引
+      existingRecords.forEach(record => {
+        const key = this._createRecordKey(record);
+        existingRecordsMap.set(key, record);
+      });
+      
+      // 过滤出需要同步的记录（使用精确比较）
       return records
-        .filter(record => !existingDatesSet.has(record.usage_date))
+        .filter(record => {
+          const key = this._createRecordKey(record);
+          return !existingRecordsMap.has(key);
+        })
         .map(record => ({ ...record, pet_id: petId }));
     } catch (error) {
       throw new SupabaseSyncError(
@@ -194,6 +209,49 @@ export class SupabaseSyncService {
         error instanceof Error ? error : undefined
       );
     }
+  }
+
+  /**
+   * 获取宠物记录
+   * @param petId 宠物ID
+   * @returns 宠物记录或null
+   */
+  private async _getPetRecord(petId: string): Promise<PetRecord | null> {
+    try {
+      const url = `${this.baseUrl}/rest/v1/pet_records?id=eq.${petId}&limit=1`;
+      const { statusCode, body } = await this.deps.httpsRequest!({
+        method: 'GET',
+        headers: this.headers,
+        url
+      } as any, '');
+      
+      if (statusCode !== 200) {
+        return null;
+      }
+      
+      const records = JSON.parse(body);
+      return records.length > 0 ? records[0] : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  /**
+   * 检查宠物记录是否需要更新
+   * @param existing 现有记录
+   * @param newRecord 新记录
+   * @returns 是否需要更新
+   */
+  private _needsPetUpdate(existing: PetRecord, newRecord: PetRecord): boolean {
+    // 检查关键字段是否有变化
+    return (
+      existing.pet_name !== newRecord.pet_name ||
+      existing.animal_type !== newRecord.animal_type ||
+      existing.emoji !== newRecord.emoji ||
+      existing.birth_time !== newRecord.birth_time ||
+      existing.death_time !== newRecord.death_time ||
+      existing.survival_days !== newRecord.survival_days
+    );
   }
 
   /**
@@ -220,13 +278,24 @@ export class SupabaseSyncService {
 
 
 
+
   /**
-   * 获取已存在的使用日期
+   * 获取已存在的记录（用于精确比较）
    * @param petId 宠物ID
-   * @returns 已存在的使用日期数组
+   * @param newRecords 新记录数组（用于过滤日期范围）
+   * @returns 已存在的记录数组
    */
-  private async _getExistingUsageDates(petId: string): Promise<string[]> {
-    const url = `${this.baseUrl}/rest/v1/token_usage?pet_id=eq.${petId}&select=usage_date`;
+  private async _getExistingUsageRecords(petId: string, newRecords: TokenUsageRecord[]): Promise<TokenUsageRecord[]> {
+    if (newRecords.length === 0) {
+      return [];
+    }
+
+    // 获取日期范围以优化查询
+    const dates = newRecords.map(r => r.usage_date).sort();
+    const startDate = dates[0];
+    const endDate = dates[dates.length - 1];
+
+    const url = `${this.baseUrl}/rest/v1/token_usage?pet_id=eq.${petId}&usage_date=gte.${startDate}&usage_date=lte.${endDate}&select=usage_date,total_tokens,input_tokens,output_tokens,cost_usd`;
 
     const { statusCode, body } = await this.deps.httpsRequest!({
       method: 'GET',
@@ -235,11 +304,19 @@ export class SupabaseSyncService {
     } as any, '');
 
     if (statusCode !== 200) {
-      throw new SupabaseHTTPError(`Failed to query existing usage dates: ${statusCode}`, statusCode, body);
+      throw new SupabaseHTTPError(`Failed to query existing usage records: ${statusCode}`, statusCode, body);
     }
 
-    const records = JSON.parse(body);
-    return records.map((record: any) => record.usage_date);
+    return JSON.parse(body);
+  }
+
+  /**
+   * 为记录创建唯一键（用于精确比较）
+   * @param record 记录
+   * @returns 唯一键
+   */
+  private _createRecordKey(record: TokenUsageRecord): string {
+    return `${record.usage_date}-${record.total_tokens}-${record.input_tokens || 0}-${record.output_tokens || 0}-${(record.cost_usd || 0).toFixed(6)}`;
   }
 
   /**

@@ -96,7 +96,7 @@ describe('SupabaseSyncService', () => {
       const petId = await service.syncPetRecord(mockPetRecord);
 
       expect(petId).toBe('pet-uuid-123');
-      expect(mockHttps).toHaveBeenCalledTimes(1);
+      expect(mockHttps).toHaveBeenCalledTimes(2); // 修复：现在会先检查现有记录再进行插入
       
       // Verify upsert call
       expect(mockHttps).toHaveBeenCalledWith({
@@ -238,11 +238,18 @@ describe('SupabaseSyncService', () => {
 
   describe('getRecordsToSync', () => {
     it('should return only new records', async () => {
-      const existingDates = [
-        { usage_date: '2024-01-01' }
+      // 模拟已存在的记录（现在返回完整记录而不是只是日期）
+      const existingRecords = [
+        {
+          usage_date: '2024-01-01',
+          total_tokens: 1500,
+          input_tokens: 1000,
+          output_tokens: 500,
+          cost_usd: 0.015
+        }
       ];
       const mockHttps = createMockHttpsRequest([
-        { statusCode: 200, body: JSON.stringify(existingDates) }
+        { statusCode: 200, body: JSON.stringify(existingRecords) }
       ]);
 
       const service = new SupabaseSyncService({
@@ -411,6 +418,249 @@ describe('SupabaseSyncService', () => {
         }),
         JSON.stringify(specialPetRecord)
       );
+    });
+  });
+
+  describe('queryLeaderboard', () => {
+    it('should query leaderboard with full functionality', async () => {
+      const mockLeaderboardData = [
+        {
+          pet_name: 'Pet1',
+          animal_type: 'cat',
+          total_tokens: '5000',
+          total_cost: '0.05',
+          survival_days: '10',
+          is_alive: true
+        },
+        {
+          pet_name: 'Pet2',
+          animal_type: 'dog',
+          total_tokens: '3000',
+          total_cost: '0.03',
+          survival_days: '5',
+          is_alive: false
+        }
+      ];
+
+      const mockHttps = createMockHttpsRequest([
+        { statusCode: 200, body: JSON.stringify(mockLeaderboardData) }
+      ]);
+
+      const service = new SupabaseSyncService({
+        config: mockConfig,
+        httpsRequest: mockHttps
+      });
+
+      const result = await service.queryLeaderboard({ period: 'all', sortBy: 'tokens', limit: 10 });
+
+      expect(result).toHaveLength(2);
+      expect(result[0]).toEqual({
+        rank: 1,
+        pet_name: 'Pet1',
+        animal_type: 'cat',
+        total_tokens: 5000,
+        total_cost: 0.05,
+        survival_days: 10,
+        is_alive: true
+      });
+    });
+
+    it('should handle query leaderboard errors', async () => {
+      const mockHttps = createMockHttpsRequest([
+        { statusCode: 500, body: 'Server Error' }
+      ]);
+
+      const service = new SupabaseSyncService({
+        config: mockConfig,
+        httpsRequest: mockHttps
+      });
+
+      await expect(service.queryLeaderboard({ period: 'all' })).rejects.toThrow(
+        SupabaseSyncError
+      );
+    });
+  });
+
+  describe('queryLeaderboardSimple', () => {
+    it('should query simple leaderboard with manual aggregation', async () => {
+      const mockPetsData = [
+        {
+          id: 'pet-1',
+          pet_name: 'Pet1',
+          animal_type: 'cat',
+          birth_time: '2024-01-01T00:00:00Z',
+          death_time: null
+        },
+        {
+          id: 'pet-2',
+          pet_name: 'Pet2',
+          animal_type: 'dog',
+          birth_time: '2024-01-05T00:00:00Z',
+          death_time: '2024-01-10T00:00:00Z'
+        }
+      ];
+
+      const mockTokenData = [
+        {
+          pet_id: 'pet-1',
+          total_tokens: '5000',
+          cost_usd: '0.05'
+        },
+        {
+          pet_id: 'pet-2',
+          total_tokens: '3000',
+          cost_usd: '0.03'
+        }
+      ];
+
+      const mockHttps = createMockHttpsRequest([
+        { statusCode: 200, body: JSON.stringify(mockPetsData) },
+        { statusCode: 200, body: JSON.stringify(mockTokenData) }
+      ]);
+
+      const service = new SupabaseSyncService({
+        config: mockConfig,
+        httpsRequest: mockHttps
+      });
+
+      const result = await service.queryLeaderboardSimple({ period: 'all', sortBy: 'tokens' });
+
+      expect(result).toHaveLength(2);
+      expect(result[0]).toEqual(
+        expect.objectContaining({
+          rank: 1,
+          pet_name: 'Pet1',
+          animal_type: 'cat',
+          total_tokens: 5000,
+          total_cost: 0.05,
+          is_alive: true
+        })
+      );
+    });
+
+    it('should handle different sorting in simple leaderboard', async () => {
+      const mockPetsData = [
+        {
+          id: 'pet-1',
+          pet_name: 'Pet1',
+          animal_type: 'cat',
+          birth_time: '2024-01-01T00:00:00Z',
+          death_time: null
+        },
+        {
+          id: 'pet-2',
+          pet_name: 'Pet2',
+          animal_type: 'dog',
+          birth_time: '2024-01-10T00:00:00Z',
+          death_time: null
+        }
+      ];
+
+      const mockTokenData = [
+        {
+          pet_id: 'pet-1',
+          total_tokens: '3000',
+          cost_usd: '0.05'
+        },
+        {
+          pet_id: 'pet-2',
+          total_tokens: '5000',
+          cost_usd: '0.03'
+        }
+      ];
+
+      const mockHttps = createMockHttpsRequest([
+        { statusCode: 200, body: JSON.stringify(mockPetsData) },
+        { statusCode: 200, body: JSON.stringify(mockTokenData) }
+      ]);
+
+      const service = new SupabaseSyncService({
+        config: mockConfig,
+        httpsRequest: mockHttps
+      });
+
+      // Test sorting by cost
+      const costSorted = await service.queryLeaderboardSimple({ period: 'all', sortBy: 'cost' });
+      expect(costSorted[0].total_cost).toBe(0.05);
+      expect(costSorted[1].total_cost).toBe(0.03);
+    });
+
+    it('should handle survival sorting in simple leaderboard', async () => {
+      const mockPetsData = [
+        {
+          id: 'pet-1',
+          pet_name: 'Pet1',
+          animal_type: 'cat',
+          birth_time: '2024-01-01T00:00:00Z',
+          death_time: null
+        },
+        {
+          id: 'pet-2',
+          pet_name: 'Pet2',
+          animal_type: 'dog',
+          birth_time: '2024-01-05T00:00:00Z',
+          death_time: null
+        }
+      ];
+
+      const mockTokenData = [
+        {
+          pet_id: 'pet-1',
+          total_tokens: '3000',
+          cost_usd: '0.05'
+        },
+        {
+          pet_id: 'pet-2',
+          total_tokens: '5000',
+          cost_usd: '0.03'
+        }
+      ];
+
+      const mockHttps = createMockHttpsRequest([
+        { statusCode: 200, body: JSON.stringify(mockPetsData) },
+        { statusCode: 200, body: JSON.stringify(mockTokenData) }
+      ]);
+
+      const service = new SupabaseSyncService({
+        config: mockConfig,
+        httpsRequest: mockHttps
+      });
+
+      // Test sorting by survival days (Pet1 born earlier should be first)
+      const survivalSorted = await service.queryLeaderboardSimple({ period: 'all', sortBy: 'survival' });
+      expect(survivalSorted[0].pet_name).toBe('Pet1'); // Born earlier, more survival days
+      expect(survivalSorted[1].pet_name).toBe('Pet2');
+    });
+
+    it('should handle empty leaderboard data', async () => {
+      const mockHttps = createMockHttpsRequest([
+        { statusCode: 200, body: '[]' },
+        { statusCode: 200, body: '[]' }
+      ]);
+
+      const service = new SupabaseSyncService({
+        config: mockConfig,
+        httpsRequest: mockHttps
+      });
+
+      const result = await service.queryLeaderboardSimple({ period: 'all' });
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('default HTTPS request', () => {
+    it('should work with default HTTPS implementation', async () => {
+      // Test default HTTPS implementation by not providing httpsRequest
+      const service = new SupabaseSyncService({
+        config: {
+          url: 'https://httpbin.org',
+          apiKey: 'test-key'
+        }
+      });
+
+      // This test mainly ensures the default implementation doesn't crash
+      // We can't easily test actual HTTP requests in unit tests
+      expect(service).toBeInstanceOf(SupabaseSyncService);
     });
   });
 });

@@ -316,7 +316,7 @@ describe('SyncCommand', () => {
       await syncCommand.execute([]);
 
       const today = new Date().toISOString().split('T')[0];
-      const expectedStartDate = '2024-01-11'; // Next day after last sync
+      const expectedStartDate = '2024-01-10'; // 修复：从最后一天开始重新同步保证数据完整
       expect(mockCCUsageReader.readTokenUsage).toHaveBeenCalledWith(expectedStartDate, today);
     });
 
