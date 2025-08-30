@@ -1,6 +1,6 @@
 {
   "name": "ccpet",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "description": "A Claude Code status line script that displays a virtual pet",
   "main": "dist/ccpet.js",
   "bin": {
