@@ -470,6 +470,7 @@ describe('ClaudeCodeStatusLine', () => {
         // @ts-ignore
         delete global.window;
       });
+
     });
 
     describe('isPetDead', () => {

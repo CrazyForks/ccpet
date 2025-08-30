@@ -222,6 +222,9 @@ class ClaudeCodeStatusLine {
         try {
           this.storage.moveToGraveyard(currentState);
           console.log(`Moved deceased pet "${currentState.petName}" to graveyard`);
+          
+          // Trigger immediate sync for deceased pet to ensure it appears on leaderboard
+          this.triggerDeathSync(currentState);
         } catch (error) {
           console.error('Failed to move pet to graveyard:', error);
           // Continue with reset even if graveyard save fails
@@ -245,6 +248,59 @@ class ClaudeCodeStatusLine {
 
   public isPetDead(): boolean {
     return this.pet.isDead();
+  }
+
+  /**
+   * 触发死亡时的立即同步，确保死亡宠物数据立即同步到排行榜
+   * @param deceasedPetState 死亡宠物的状态
+   */
+  private triggerDeathSync(deceasedPetState: IPetState): void {
+    try {
+      const config = this.configService.getConfig();
+      
+      // 检查是否启用了Supabase同步
+      if (!config.supabase?.url || !config.supabase?.apiKey) {
+        console.log('Supabase sync not configured, skipping death sync');
+        return;
+      }
+
+      // 使用spawn启动独立的同步进程，确保不阻塞主流程
+      const { spawn } = require('child_process');
+      const ccpetPath = this.getCCPetExecutablePath();
+      
+      // 启动同步命令，但不等待结果
+      const syncProcess = spawn(ccpetPath, ['sync'], {
+        detached: true,
+        stdio: ['ignore', 'ignore', 'ignore'] // 完全静默运行
+      });
+      
+      // 立即释放进程，让它在后台运行
+      syncProcess.unref();
+      
+      console.log(`Triggered death sync for pet "${deceasedPetState.petName}" (${deceasedPetState.uuid})`);
+    } catch (error) {
+      console.warn('Failed to trigger death sync:', error);
+      // 不要让同步失败影响主要的重置流程
+    }
+  }
+
+  /**
+   * 获取 ccpet 可执行文件路径
+   */
+  private getCCPetExecutablePath(): string {
+    // 首先尝试全局安装的 ccpet
+    try {
+      const { execSync } = require('child_process');
+      const globalPath = execSync('which ccpet', { encoding: 'utf8' }).trim();
+      if (globalPath && require('fs').existsSync(globalPath)) {
+        return globalPath;
+      }
+    } catch {
+      // which 命令失败，继续尝试其他方法
+    }
+
+    // 尝试使用 npx 运行
+    return 'npx';
   }
 }
 
