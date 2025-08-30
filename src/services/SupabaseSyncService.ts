@@ -188,20 +188,16 @@ export class SupabaseSyncService {
     try {
       // 获取已存在的记录（包含详细信息用于精确比较）
       const existingRecords = await this._getExistingUsageRecords(petId, records);
-      const existingRecordsMap = new Map<string, TokenUsageRecord>();
+      const existingDatesSet = new Set<string>();
       
-      // 为现有记录创建索引
+      // 基于数据库约束：(pet_id, usage_date)必须唯一
       existingRecords.forEach(record => {
-        const key = this._createRecordKey(record);
-        existingRecordsMap.set(key, record);
+        existingDatesSet.add(record.usage_date);
       });
       
-      // 过滤出需要同步的记录（使用精确比较）
+      // 过滤出需要同步的记录（基于usage_date约束检查）
       return records
-        .filter(record => {
-          const key = this._createRecordKey(record);
-          return !existingRecordsMap.has(key);
-        })
+        .filter(record => !existingDatesSet.has(record.usage_date))
         .map(record => ({ ...record, pet_id: petId }));
     } catch (error) {
       throw new SupabaseSyncError(
@@ -308,15 +304,6 @@ export class SupabaseSyncService {
     }
 
     return JSON.parse(body);
-  }
-
-  /**
-   * 为记录创建唯一键（用于精确比较）
-   * @param record 记录
-   * @returns 唯一键
-   */
-  private _createRecordKey(record: TokenUsageRecord): string {
-    return `${record.usage_date}-${record.total_tokens}-${record.input_tokens || 0}-${record.output_tokens || 0}-${(record.cost_usd || 0).toFixed(6)}`;
   }
 
   /**
