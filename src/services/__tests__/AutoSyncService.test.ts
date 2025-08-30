@@ -144,13 +144,16 @@ describe('AutoSyncService', () => {
       }));
       vi.mocked(fs.existsSync).mockReturnValue(true);
 
-      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation();
+      const appendFileSpy = vi.spyOn(fs, 'appendFileSync').mockImplementation();
       
       await autoSyncService.checkAndTriggerAutoSync();
       
-      expect(consoleSpy).toHaveBeenCalledWith('Detected stale sync process, resetting sync status');
+      expect(appendFileSpy).toHaveBeenCalledWith(
+        expect.stringContaining('sync.log'),
+        expect.stringMatching(/WARN.*Detected stale sync process.*resetting sync status/)
+      );
       
-      consoleSpy.mockRestore();
+      appendFileSpy.mockRestore();
     });
 
     it('should handle file read errors gracefully', async () => {
@@ -160,14 +163,17 @@ describe('AutoSyncService', () => {
         throw new Error('File read error');
       });
 
-      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation();
+      const appendFileSpy = vi.spyOn(fs, 'appendFileSync').mockImplementation();
       
       await autoSyncService.checkAndTriggerAutoSync();
       
-      // Should not throw error and should still trigger sync in test mode
-      expect(consoleSpy).toHaveBeenCalledWith('Failed to read last sync record:', expect.any(Error));
+      // Should not throw error and should log the error
+      expect(appendFileSpy).toHaveBeenCalledWith(
+        expect.stringContaining('sync.log'),
+        expect.stringMatching(/ERROR.*Failed to read last sync record/)
+      );
       
-      consoleSpy.mockRestore();
+      appendFileSpy.mockRestore();
     });
   });
 
@@ -244,13 +250,16 @@ describe('AutoSyncService', () => {
         throw new Error('Config error');
       });
 
-      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation();
+      const appendFileSpy = vi.spyOn(fs, 'appendFileSync').mockImplementation();
       
       await autoSyncService.checkAndTriggerAutoSync();
       
-      expect(consoleSpy).toHaveBeenCalledWith('Auto sync check failed:', expect.any(Error));
+      expect(appendFileSpy).toHaveBeenCalledWith(
+        expect.stringContaining('sync.log'),
+        expect.stringMatching(/ERROR.*Auto sync check failed/)
+      );
       
-      consoleSpy.mockRestore();
+      appendFileSpy.mockRestore();
     });
 
     it('should handle write errors gracefully', () => {
@@ -258,13 +267,16 @@ describe('AutoSyncService', () => {
         throw new Error('Write error');
       });
 
-      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation();
+      const appendFileSpy = vi.spyOn(fs, 'appendFileSync').mockImplementation();
       
       autoSyncService.resetSyncStatus();
       
-      expect(consoleSpy).toHaveBeenCalledWith('Failed to update sync status:', expect.any(Error));
+      expect(appendFileSpy).toHaveBeenCalledWith(
+        expect.stringContaining('sync.log'),
+        expect.stringMatching(/ERROR.*Failed to update sync status/)
+      );
       
-      consoleSpy.mockRestore();
+      appendFileSpy.mockRestore();
     });
   });
 });

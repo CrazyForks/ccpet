@@ -9,9 +9,11 @@ interface LastSyncRecord {
   syncInProgress: boolean;
 }
 
+
 export class AutoSyncService {
   private configService: ConfigService;
   private lastSyncFile: string;
+  private syncLogFile: string;
   private readonly testMode: boolean;
 
   constructor(configService?: ConfigService, testMode: boolean = false) {
@@ -20,7 +22,30 @@ export class AutoSyncService {
     
     // Use different paths for test and production environments
     const configDirName = testMode ? '.claude-pet-test' : '.claude-pet';
-    this.lastSyncFile = path.join(os.homedir(), configDirName, 'last-sync.json');
+    const configDir = path.join(os.homedir(), configDirName);
+    this.lastSyncFile = path.join(configDir, 'last-sync.json');
+    this.syncLogFile = path.join(configDir, 'sync.log');
+  }
+
+  /**
+   * 写入同步日志
+   */
+  private writeSyncLog(message: string, level: 'info' | 'warn' | 'error' = 'info'): void {
+    try {
+      const timestamp = new Date().toISOString();
+      const logEntry = `[${timestamp}] ${level.toUpperCase()}: ${message}\n`;
+      
+      // 确保目录存在
+      const logDir = path.dirname(this.syncLogFile);
+      if (!fs.existsSync(logDir)) {
+        fs.mkdirSync(logDir, { recursive: true });
+      }
+      
+      // 追加写入日志文件
+      fs.appendFileSync(this.syncLogFile, logEntry);
+    } catch (error) {
+      // 写入日志失败时静默处理，避免影响主要功能
+    }
   }
 
   /**
@@ -50,13 +75,15 @@ export class AutoSyncService {
       
       // 检查是否已经有同步进程在运行
       if (lastSyncRecord.syncInProgress) {
-        // 检查是否是僵尸进程（超过30分钟的同步进程认为是僵尸进程）
+        // 检查是否是僵尸进程（超过5分钟的同步进程认为是僵尸进程）
         const syncStartTime = lastSyncRecord.lastSyncTime;
-        if (currentTime - syncStartTime > 30 * 60 * 1000) {
-          console.warn('Detected stale sync process, resetting sync status');
-          this.updateSyncStatus(false, syncStartTime);
+        const timeoutMs = 5 * 60 * 1000; // 5分钟超时
+        if (currentTime - syncStartTime > timeoutMs) {
+          this.writeSyncLog(`Detected stale sync process (${Math.round((currentTime - syncStartTime) / 1000)}s), resetting sync status`, 'warn');
+          this.updateSyncStatus(false, currentTime);
         } else {
           // 有正在进行的同步，跳过
+          this.writeSyncLog(`Sync already in progress (started ${Math.round((currentTime - syncStartTime) / 1000)}s ago)`, 'info');
           return;
         }
       }
@@ -70,7 +97,7 @@ export class AutoSyncService {
       this.triggerBackgroundSync();
       
     } catch (error) {
-      console.warn('Auto sync check failed:', error);
+      this.writeSyncLog(`Auto sync check failed: ${error}`, 'error');
     }
   }
 
@@ -110,21 +137,21 @@ export class AutoSyncService {
         this.updateSyncStatus(false, syncEndTime);
         
         if (code === 0) {
-          console.log('Background sync completed successfully');
+          this.writeSyncLog('Background sync completed successfully', 'info');
         } else {
-          console.warn(`Background sync failed with code ${code}`);
+          this.writeSyncLog(`Background sync failed with code ${code}`, 'error');
         }
       });
 
       syncProcess.on('error', (error) => {
-        console.warn('Background sync process error:', error.message);
+        this.writeSyncLog(`Background sync process error: ${error.message}`, 'error');
         this.updateSyncStatus(false, Date.now());
       });
 
-      console.log('Background sync triggered');
+      this.writeSyncLog('Background sync triggered', 'info');
 
     } catch (error) {
-      console.warn('Failed to trigger background sync:', error);
+      this.writeSyncLog(`Failed to trigger background sync: ${error}`, 'error');
       this.updateSyncStatus(false, Date.now());
     }
   }
@@ -161,13 +188,34 @@ export class AutoSyncService {
         };
       }
     } catch (error) {
-      console.warn('Failed to read last sync record:', error);
+      this.writeSyncLog(`Failed to read last sync record: ${error}`, 'error');
     }
 
     return {
       lastSyncTime: 0,
       syncInProgress: false
     };
+  }
+
+  /**
+   * 强制重置同步状态（当同步状态卡住时使用）
+   */
+  public resetSyncStatus(): void {
+    try {
+      const record = this.getLastSyncRecord();
+      const currentTime = Date.now();
+      
+      if (record.syncInProgress) {
+        const stuckDuration = Math.round((currentTime - record.lastSyncTime) / 1000);
+        this.writeSyncLog(`Manually resetting stuck sync status (was stuck for ${stuckDuration}s)`, 'warn');
+      } else {
+        this.writeSyncLog('Sync status manually reset (was already false)', 'info');
+      }
+      
+      this.updateSyncStatus(false, currentTime);
+    } catch (error) {
+      this.writeSyncLog(`Failed to reset sync status: ${error}`, 'error');
+    }
   }
 
   /**
@@ -187,8 +235,9 @@ export class AutoSyncService {
       };
 
       fs.writeFileSync(this.lastSyncFile, JSON.stringify(record, null, 2));
+      this.writeSyncLog(`Sync status updated: syncInProgress=${syncInProgress}`, 'info');
     } catch (error) {
-      console.warn('Failed to update sync status:', error);
+      this.writeSyncLog(`Failed to update sync status: ${error}`, 'error');
     }
   }
 
@@ -208,10 +257,4 @@ export class AutoSyncService {
     return record.syncInProgress;
   }
 
-  /**
-   * 手动重置同步状态（用于故障恢复）
-   */
-  public resetSyncStatus(): void {
-    this.updateSyncStatus(false, Date.now());
-  }
 }
