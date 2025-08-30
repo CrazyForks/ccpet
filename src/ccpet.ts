@@ -2,6 +2,7 @@ import { Pet, IPetState } from './core/Pet';
 import { StatusBarFormatter } from './ui/StatusBar';
 import { PetStorage } from './services/PetStorage';
 import { ConfigService } from './services/ConfigService';
+import { AutoSyncService } from './services/AutoSyncService';
 import { getTokenMetrics } from './utils/jsonl';
 import { PET_CONFIG, generateRandomPetName } from './core/config';
 import { v4 as uuidv4 } from 'uuid';
@@ -79,11 +80,13 @@ class ClaudeCodeStatusLine {
   private storage: PetStorage;
   private configService: ConfigService;
   private animationCounter: AnimationCounter;
+  private autoSyncService: AutoSyncService;
 
   constructor(testMode: boolean = false, configService?: ConfigService) {
     this.animationCounter = new AnimationCounter(testMode);
     this.storage = new PetStorage();
     this.configService = configService || new ConfigService();
+    this.autoSyncService = new AutoSyncService(this.configService, testMode);
     this.formatter = new StatusBarFormatter(testMode, configService);
     
     // Load or create initial pet state
@@ -149,6 +152,12 @@ class ClaudeCodeStatusLine {
       // Get updated state for display
       const state = this.pet.getState();
       
+      // 检查并触发自动同步（在后台运行，不影响状态显示）
+      this.autoSyncService.checkAndTriggerAutoSync().catch(error => {
+        // 静默处理自动同步错误，不影响主要功能
+        console.warn('Auto sync check failed:', error);
+      });
+      
       // 启用动画并获取当前帧索引
       const animationEnabled = this.animationCounter.shouldEnableAnimation();
       const frameIndex = this.animationCounter.getFrameIndex();
@@ -180,6 +189,12 @@ class ClaudeCodeStatusLine {
     // Apply time decay before getting display
     this.pet.applyTimeDecay();
     const state = this.pet.getState();
+    
+    // 检查并触发自动同步（在后台运行，不影响状态显示）
+    this.autoSyncService.checkAndTriggerAutoSync().catch(error => {
+      // 静默处理自动同步错误，不影响主要功能
+      console.warn('Auto sync check failed:', error);
+    });
     
     // 启用动画并获取当前帧索引
     const animationEnabled = this.animationCounter.shouldEnableAnimation();

@@ -3,6 +3,7 @@ import { ConfigCommand } from './commands/ConfigCommand';
 import { ResetCommand } from './commands/ResetCommand';
 import { SyncCommand } from './commands/SyncCommand';
 import { LeaderboardCommand } from './commands/LeaderboardCommand';
+import { AutoSyncStatusCommand } from './commands/AutoSyncStatusCommand';
 import { main as ccpetMain } from './ccpet';
 
 // Import package.json to get version
@@ -15,6 +16,7 @@ interface Command {
 }
 
 const commands: Command[] = [
+  new AutoSyncStatusCommand(),
   new CheckCommand(),
   new ConfigCommand(),
   new LeaderboardCommand(),
@@ -42,6 +44,7 @@ function showHelp() {
   console.log('');
   console.log('Examples:');
   console.log('  ccpet                    # Show status line (for Claude Code)');
+  console.log('  ccpet autosync status    # Check auto sync status and settings');
   console.log('  ccpet check             # Manually check pet status');  
   console.log('  ccpet config list       # List current configuration');
   console.log('  ccpet config set colors.petExpression "#FF0000"');
