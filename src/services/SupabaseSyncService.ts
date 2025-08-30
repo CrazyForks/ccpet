@@ -194,7 +194,7 @@ export class SupabaseSyncService {
       existingRecords.forEach(record => {
         existingDatesSet.add(record.usage_date);
       });
-      
+
       // 过滤出需要同步的记录（基于usage_date约束检查）
       return records
         .filter(record => !existingDatesSet.has(record.usage_date))

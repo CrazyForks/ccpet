@@ -58,8 +58,13 @@ export class CCUsageReader {
       const command = this._buildCCUsageCommand(startDate, endDate);
       const { stdout, stderr } = await this.deps.execCommand!(command);
 
+      // 检查stderr，但忽略NPX安装信息
       if (stderr && stderr.trim() !== '') {
-        throw new CCUsageValidationError(`ccusage command stderr: ${stderr}`);
+        const cleanStderr = stderr.trim();
+        // 忽略npx安装输出
+        if (!cleanStderr.match(/^npx:\s+(installed|cached)\s+\d+\s+in\s+[\d.]+s?$/)) {
+          throw new CCUsageValidationError(`ccusage command stderr: ${stderr}`);
+        }
       }
 
       const rawData = this._parseJsonOutput(stdout);
